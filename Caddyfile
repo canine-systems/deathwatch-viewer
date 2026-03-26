@@ -7,7 +7,6 @@ deaths.canine.systems {
                         root /usr/share/deathwatch/
                 }
         }
-        root * /usr/share/deathwatch-viewer/src/
         file_server * {
                 root /usr/share/deathwatch-viewer/src/
         }
