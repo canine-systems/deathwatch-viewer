@@ -1,0 +1,16 @@
+# Use with `import /path/to/deathwatch-viewer/Caddyfile`
+
+deaths.canine.systems {
+        route /deathwatch/* {
+                uri strip_prefix /deathwatch
+                file_server {
+                        root /home/minecraft/deathwatch/
+                }
+        }
+        root * /home/minecraft/deathwatch-viewer/src/
+        file_server * {
+                root /home/puppy/deathwatch-viewer/src/
+        }
+        try_files {path} /index.html
+        header * Cache-Control "public, max-age=0, must-revalidate"
+}
