@@ -4,12 +4,12 @@ deaths.canine.systems {
         route /deathwatch/* {
                 uri strip_prefix /deathwatch
                 file_server {
-                        root /home/minecraft/deathwatch/
+                        root /usr/share/deathwatch/
                 }
         }
-        root * /home/minecraft/deathwatch-viewer/src/
+        root * /usr/share/deathwatch-viewer/src/
         file_server * {
-                root /home/puppy/deathwatch-viewer/src/
+                root /usr/share/deathwatch-viewer/src/
         }
         try_files {path} /index.html
         header * Cache-Control "public, max-age=0, must-revalidate"
