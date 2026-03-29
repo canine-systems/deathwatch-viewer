@@ -1,0 +1,13 @@
+http://localhost:8000 {
+        route /deathwatch/* {
+                uri strip_prefix /deathwatch
+                file_server {
+                        root ./deathwatch/
+                }
+        }
+        file_server * {
+                root ./src/
+        }
+        try_files {path} /index.html
+        header * Cache-Control "public, max-age=0, must-revalidate"
+}
