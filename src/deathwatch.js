@@ -67,12 +67,13 @@ class DeathwatchTable {
     }
 
     load() {
-        this.deathwatch.deaths.forEach(([date, deaths]) => {
+        this.deathwatch.loadDeaths((date, deaths) => {
             let table = new DOMParser().parseFromString(this.tableTemplate, 'text/html').body.children[0];
             let tableBody = table.getElementsByTagName("tbody")[0];
             let columns = table.getAttribute("deathwatch-table-order").split(",");
 
             deaths.forEach(death => {
+                death = new Death(death);
                 let tr = document.createElement("tr");
                 columns.forEach(col => {
                     let td = document.createElement("td");
@@ -113,87 +114,90 @@ class Deathwatch {
     keyPath = "timestamp";
 
     constructor() {
-        //this.loadDatabase();
-        this.resetDatabase();
     }
 
-    get deaths() {
-        return [
-            ["March 29 2026", [
-                new Death({"dimension":"minecraft:overworld","killer":null,"message":"Thranos drowned","timestamp":"2026-03-29T23:13:10.130Z","type":"drown","victim":{"UUID":"90f12ecd-0abd-4849-a616-c005805fc332","displayName":"Thranos"}})
-            ]]
-        ]
-    }
-
-    loadDatabase() {
-        let openRequest = indexedDB.open(this.dbName, this.dbVersion);
-
-        openRequest.onupgradeneeded = (evt) => this.upgrade(evt);
-        openRequest.onerror = (evt) => this.error(evt);
-        openRequest.onsuccess = (evt) => this.success(evt);
+    loadDeaths(callback) {
+        this.resetDatabase().then(() => {
+            this.success(callback).then(() => {
+                // lol, why the fuck do i need to do this twice
+                this.success(callback).then(() => {})
+            })
+        });
     }
 
     resetDatabase() {
-        let deleteRequest = indexedDB.deleteDatabase(this.dbName);
-        deleteRequest.onsuccess = () => this.loadDatabase();
+        return idb.deleteDB(this.dbName);
     }
 
-    // Set up the database.
-    upgrade(evt) {
-        let db = evt.target.result;
+    async open_db() {
+        return await idb.openDB(this.dbName, this.dbVersion, {
+            upgrade: (db, oldVersion, newVersion, transaction, event) => {
+                if (oldVersion != 0)
+                    resetDatabase();
 
-        if (evt.oldVersion != 0) {
-            // If we're inintializing the database, but it was already initialized,
-            // remove the old one.
-            this.resetDatabase();
-            return;
-        }
-
-        db.createObjectStore(this.objectStore, {keyPath: this.keyPath});
-        db.createObjectStore(this.dateObjectStore, {keyPath: "date"});
-    }
-
-    // Runs when the database open request encounters an error.
-    error(err) {
-        throw new Error(this.openRequest.error);
+                db.createObjectStore(this.objectStore, {keyPath: this.keyPath});
+                db.createObjectStore(this.dateObjectStore, {keyPath: "date"});
+            }
+        })
     }
 
     // Runs when the database is successfully loaded.
-    success(evt) {
-        console.log("start success");
-        let db = evt.target.result;
+    async success(loadCallback) {
+        const db = await this.open_db();
+        let dates = (await db.getAll(this.dateObjectStore)) || [];
+        let lastDate = dates.length ? dates[dates.length - 1] : null;
 
-        this.death_files().then(files => {
-            console.log(files);
-            files.forEach(f => this.load_death_file(db, f));
-        });
-        console.log("end   success");
+        console.log("before this.death_files()");
+        let files = await this.death_files();
+        for await (const file of files) {
+            await this.load_death_file(db, file, dates, lastDate);
+        }
+
+        console.log("for await", dates);
+        for await (const date of dates) {
+            console.log("  date", date);
+            var startDate = new Date(date["date"]);
+            let endDate = new Date();
+            endDate.setDate(startDate.getDate() + 1);
+            let startDateStr = this.formatDate(startDate).replaceAll("/", "-");
+            let endDateStr = this.formatDate(endDate).replaceAll("/", "-");
+            console.log("dates", startDateStr, endDateStr);
+            let dateRange = IDBKeyRange.bound(startDateStr, endDateStr);
+
+            // FIXME: Why does searching by date range not work?
+            let deaths = (await db.getAll(this.objectStore, dateRange)) || [];
+
+            console.log("loadCallback(", startDate.toLocaleString(), ", ", deaths);
+            loadCallback(startDate.toLocaleString(), deaths);
+        }
     }
 
-    load_death_file(db, file) {
+    async load_death_file(db, file, dates, last_date) {
         console.log("load_death_file(" + db.toString() + ", " + file.toString() + ")");
-        fetch(file).then(result => result.text()).then(jsonl => {
-            let new_deaths = jsonl.trim().split("\n").map(JSON.parse);
 
-            let transaction = db.transaction([this.objectStore, this.dateObjectStore], "readwrite");
-            let deaths = transaction.objectStore(this.objectStore);
-            let dates = transaction.objectStore(this.dateObjectStore);
+        let file_date = file.split("/").slice(2).join("/").split(".")[0];
+        if (dates.includes(file_date) && last_date != file_date) {
+            console.log("Already stored info for", file_date);
+            return;
+        } else {
+            console.log("Loading deaths for", file_date);
+        }
 
-            new_deaths.forEach(death => {
-                let date = new Date(death["timestamp"]);
-                death["date"] = date.getFullYear() + "-" +
-                    date.getMonth().toString().padStart(2, "0") + "-" +
-                    date.getDate().toString().padStart(2, "0");
+        let result = await fetch(file);
+        let text = await result.text();
+        let new_deaths = text.trim().split("\n").map(JSON.parse);
 
-                let date_request = dates.put({"date": death["date"]});
-                date_request.onsuccess = () => console.log("Adding date: ", date_request.result);
-                date_request.onerror = () => console.log("Error adding date: ", date_request.error);
+        let transaction = db.transaction([this.objectStore, this.dateObjectStore], "readwrite");
+        let deathStore = transaction.objectStore(this.objectStore);
+        let dateStore = transaction.objectStore(this.dateObjectStore);
 
-                let request = deaths.put(death);
-                request.onsuccess = () => console.log("Added death: ", request.result);
-                request.onerror = () => console.log("Error adding death: ", request.error);
-            });
-        });
+        await Promise.all(new_deaths.map(async death => {
+            let date = new Date(death["timestamp"]);
+            death["date"] = this.formatDate(date);
+
+            await dateStore.put({"date": death["date"]});
+            await deathStore.put(death);
+        }));
     }
 
     async death_files() {
@@ -218,5 +222,11 @@ class Deathwatch {
             const entry_path = path + entry["name"];
             return entry_path;
         });
+    }
+
+    formatDate(date) {
+        return date.getFullYear() + "/" +
+            (date.getMonth() + 1).toString().padStart(2, "0") + "/" +
+            date.getDate().toString().padStart(2, "0");
     }
 }
