@@ -164,11 +164,10 @@ class Deathwatch {
             console.log("dates", startDateStr, endDateStr);
             let dateRange = IDBKeyRange.bound(startDateStr, endDateStr);
 
-            // FIXME: Why does searching by date range not work?
             let deaths = (await db.getAll(this.objectStore, dateRange)) || [];
 
             console.log("loadCallback(", startDate.toLocaleString(), ", ", deaths);
-            loadCallback(startDate.toLocaleString(), deaths);
+            loadCallback(startDate.toLocaleString().split(',')[0], deaths);
         }
     }
 
