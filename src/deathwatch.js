@@ -146,6 +146,7 @@ class Deathwatch {
         const db = await this.open_db();
         let dates = (await db.getAll(this.dateObjectStore)) || [];
         let lastDate = dates.length ? dates[dates.length - 1] : null;
+        dates.reverse();
 
         console.log("before this.death_files()");
         let files = await this.death_files();
