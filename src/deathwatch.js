@@ -166,6 +166,7 @@ class Deathwatch {
             let dateRange = IDBKeyRange.bound(startDateStr, endDateStr);
 
             let deaths = (await db.getAll(this.objectStore, dateRange)) || [];
+            deaths.reverse();
 
             console.log("loadCallback(", startDate.toLocaleString(), ", ", deaths);
             let dateStr = startDate.toDateString().split(' ').slice(1).join(' ');

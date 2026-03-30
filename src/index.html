@@ -42,10 +42,18 @@ document.addEventListener("DOMContentLoaded", (event) => new DeathwatchTable().l
 </head>
 <body>
 <main>
+    <h1>Deathwatch</h1>
     <noscript>You need to enable JavaScript.</noscript>
+
+    <!--<h2>Leaderboard</h2>
 
     <table id="death-leaderboard">
     </table>
+
+    <h2>Deaths</h2>-->
+
+    <p>A list of all deaths on the server, grouped by date, newest deaths first.</p>
+    <p>(All dates and times are UTC because time zones are difficult.)</p>
 
 <script type="deathwatch-table-template">
     <table class="deathwatch-table" deathwatch-table-order="timestamp,victim-avatar,message">
