@@ -1,11 +1,63 @@
 <!doctype html>
 <html>
-    <head>
-        <title>Deathwatch</title>
-        <style>
-        </style>
-    </head>
-    <body>
-        TODO
-    </body>
+<head>
+<title>Deathwatch</title>
+<style>
+:root {
+  --space: 5;
+  color-scheme: light dark;
+  --foreground: light-dark(black, white);
+  --background: light-dark(#f2f0f5, #32283c);
+
+  color: var(--foreground);
+  background-color: var(--background);
+}
+a:link { color: light-dark(#0000b3, #b3b3ff); }
+a:visited { color: light-dark(#5c1c96, #dabff3); }
+/*a:hover,a:focus { color: light-dark(, ); }*/
+a:active, a:visited:active { color: light-dark(#b30000, #ffb3b3); }
+body {
+  padding: 0 1em;
+  margin: 2em 0 5em 0;
+  text-rendering: optimizeLegibility;
+  line-height: calc(1.4 + var(--space) / 100);
+  letter-spacing: calc(1em * (var(--space) / 200));
+  word-spacing: calc(1em * (var(--space) / 100));
+  font-family: Roboto, helvetica, sans-serif;
+}
+header, main, footer {
+  font-size: 130%;
+  max-width: 72ch;
+  margin: 0 auto;
+}
+.avatar {
+    max-height: 1em;
+}
+</style>
+<script src="/deathwatch.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", (event) => new DeathwatchTable().load());
+</script>
+</head>
+<body>
+<main>
+    <noscript>You need to enable JavaScript.</noscript>
+
+    <table id="death-leaderboard">
+    </table>
+
+<script type="deathwatch-table-template">
+    <table class="deathwatch-table" deathwatch-table-order="timestamp,victim-avatar,message">
+        <thead>
+            <tr>
+                <th scope="col">Time</th>
+                <th colspan=2 scope="col">Message</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</script>
+</main>
+</body>
 </html>
