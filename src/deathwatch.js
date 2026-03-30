@@ -35,7 +35,7 @@ class Timestamp {
     toHTML() {
         let time = document.createElement("time");
         time.setAttribute("datetime", this.timestamp);
-        time.innerText = this.datetime.toLocaleTimeString();
+        time.innerText = this.datetime.toUTCString().split(' ').slice(4)[0];
         return time;
     }
 }
@@ -168,7 +168,8 @@ class Deathwatch {
             let deaths = (await db.getAll(this.objectStore, dateRange)) || [];
 
             console.log("loadCallback(", startDate.toLocaleString(), ", ", deaths);
-            loadCallback(startDate.toLocaleString().split(',')[0], deaths);
+            let dateStr = startDate.toDateString().split(' ').slice(1).join(' ');
+            loadCallback(dateStr, deaths);
         }
     }
 
@@ -225,8 +226,8 @@ class Deathwatch {
     }
 
     formatDate(date) {
-        return date.getFullYear() + "/" +
-            (date.getMonth() + 1).toString().padStart(2, "0") + "/" +
-            date.getDate().toString().padStart(2, "0");
+        return date.getUTCFullYear() + "/" +
+            (date.getUTCMonth() + 1).toString().padStart(2, "0") + "/" +
+            date.getUTCDate().toString().padStart(2, "0");
     }
 }
