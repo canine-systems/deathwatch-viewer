@@ -72,7 +72,6 @@ class DeathwatchTable {
             let tableBody = table.getElementsByTagName("tbody")[0];
             let columns = table.getAttribute("deathwatch-table-order").split(",");
 
-            console.log(deaths);
             deaths.forEach(death => {
                 let tr = document.createElement("tr");
                 columns.forEach(col => {
@@ -110,10 +109,12 @@ class Deathwatch {
     dbVersion = 1; // increase this to force all clients to re-generate
 
     objectStore = "deaths";
+    dateObjectStore = "dates";
     keyPath = "timestamp";
 
     constructor() {
-        this.loadDatabase();
+        //this.loadDatabase();
+        this.resetDatabase();
     }
 
     get deaths() {
@@ -125,24 +126,21 @@ class Deathwatch {
     }
 
     loadDatabase() {
-        this.openRequest = indexedDB.open(this.dbName, this.dbVersion);
+        let openRequest = indexedDB.open(this.dbName, this.dbVersion);
 
-        this.openRequest.onupgradeneeded = this.upgrade;
-        this.openRequest.onerror = this.error;
-        this.openRequest.onsuccess = this.success;
-
-        window.openRequest = this.openRequest;
-        console.log(this.openRequest);
+        openRequest.onupgradeneeded = (evt) => this.upgrade(evt);
+        openRequest.onerror = (evt) => this.error(evt);
+        openRequest.onsuccess = (evt) => this.success(evt);
     }
 
     resetDatabase() {
         let deleteRequest = indexedDB.deleteDatabase(this.dbName);
-        deleteRequest.onsuccess(evt => loadDatabase());
+        deleteRequest.onsuccess = () => this.loadDatabase();
     }
 
     // Set up the database.
     upgrade(evt) {
-        let db = this.openRequest.result;
+        let db = evt.target.result;
 
         if (evt.oldVersion != 0) {
             // If we're inintializing the database, but it was already initialized,
@@ -152,6 +150,7 @@ class Deathwatch {
         }
 
         db.createObjectStore(this.objectStore, {keyPath: this.keyPath});
+        db.createObjectStore(this.dateObjectStore, {keyPath: "date"});
     }
 
     // Runs when the database open request encounters an error.
@@ -160,34 +159,40 @@ class Deathwatch {
     }
 
     // Runs when the database is successfully loaded.
-    success() {
-        let db = this.openRequest.result;
-
-        console.log(db);
+    success(evt) {
+        console.log("start success");
+        let db = evt.target.result;
 
         this.death_files().then(files => {
+            console.log(files);
             files.forEach(f => this.load_death_file(db, f));
         });
+        console.log("end   success");
     }
 
     load_death_file(db, file) {
         console.log("load_death_file(" + db.toString() + ", " + file.toString() + ")");
-        let new_deaths = fetch(file).then(jsonl => {
-            console.log(jsonl);
-            jsonl.split("\n").map(JSON.parse)});
+        fetch(file).then(result => result.text()).then(jsonl => {
+            let new_deaths = jsonl.trim().split("\n").map(JSON.parse);
 
-        let transaction = db.transaction(this.objectStore, "readwrite");
-        let deaths = transaction.objectStore("deaths");
+            let transaction = db.transaction([this.objectStore, this.dateObjectStore], "readwrite");
+            let deaths = transaction.objectStore(this.objectStore);
+            let dates = transaction.objectStore(this.dateObjectStore);
 
-        new_deaths.forEach(death => {
-            console.log("put " + death);
-            let request = deaths.put(death);
-            request.onsuccess = function() {
-                console.log("Added death: ", request.result);
-            };
-            request.onerror = function() {
-                console.log("Error adding death: ", request.error);
-            };
+            new_deaths.forEach(death => {
+                let date = new Date(death["timestamp"]);
+                death["date"] = date.getFullYear() + "-" +
+                    date.getMonth().toString().padStart(2, "0") + "-" +
+                    date.getDate().toString().padStart(2, "0");
+
+                let date_request = dates.put({"date": death["date"]});
+                date_request.onsuccess = () => console.log("Adding date: ", date_request.result);
+                date_request.onerror = () => console.log("Error adding date: ", date_request.error);
+
+                let request = deaths.put(death);
+                request.onsuccess = () => console.log("Added death: ", request.result);
+                request.onerror = () => console.log("Error adding death: ", request.error);
+            });
         });
     }
 
@@ -196,7 +201,7 @@ class Deathwatch {
         const months = await Promise.all(years.flatMap(y => this.files(y)));
         const days = await Promise.all(months.flatMap(m => this.files(m)));
 
-        return days
+        return days.flat();
     }
 
     async files(path) {
@@ -209,7 +214,7 @@ class Deathwatch {
         }
 
         const result = await response.json();
-        return result.map(entry => {
+        return result.flatMap(entry => {
             const entry_path = path + entry["name"];
             return entry_path;
         });
