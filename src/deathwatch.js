@@ -204,8 +204,8 @@ class Deathwatch {
 
     async death_files() {
         const years = await this.files("/deathwatch/");
-        const months = await Promise.all(years.flatMap(y => this.files(y)));
-        const days = await Promise.all(months.flatMap(m => this.files(m)));
+        const months = await Promise.all(years.flat().map(y => this.files(y)));
+        const days = await Promise.all(months.flat().map(m => this.files(m)));
 
         return days.flat();
     }
