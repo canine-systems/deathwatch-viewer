@@ -157,12 +157,12 @@ class Deathwatch {
         console.log("for await", dates);
         for await (const date of dates) {
             console.log("  date", date);
-            var startDate = new Date(date["date"]);
-            let endDate = new Date();
+            const startDate = new Date(date["date"]);
+            let endDate = new Date(startDate);
             endDate.setDate(startDate.getDate() + 1);
             let startDateStr = this.formatDate(startDate).replaceAll("/", "-");
             let endDateStr = this.formatDate(endDate).replaceAll("/", "-");
-            console.log("dates", startDateStr, endDateStr);
+            console.log("    date range", startDateStr, endDateStr);
             let dateRange = IDBKeyRange.bound(startDateStr, endDateStr);
 
             let deaths = (await db.getAll(this.objectStore, dateRange)) || [];
